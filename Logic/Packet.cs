@@ -1,6 +1,6 @@
 public class Packet
 {
-     public string Id { get; set; }
+    public string Id { get; set; }
     public string Time { get; set; }
     public string Source { get; set; }
     public string Destination { get; set; }
@@ -8,9 +8,9 @@ public class Packet
     public string Length { get; set; }
     public string Content { get; set; }
 
-    public Packet(int Id,string time, string source, string destination, string protocol, string length, string content)
+    public Packet(string id,string time, string source, string destination, string protocol, string length, string content)
     {
-        Id = Id;
+        Id = id;
         Time = time;
         Source = source;
         Destination = destination;

@@ -15,12 +15,18 @@ public class MainWindowController
     public VBox MainBox { get; private set; }
     public int Width { get; private set; }
     public int Height { get; private set; }
+    public string Filter { get; set; }
+
+    public List<Packet> packets = new List<Packet>();
 
     private TreeView interfaceTreeView;
     private TreeView packetTreeView;
     private ListStore packetStore;
     private ScrolledWindow packetScrolledWindow; // Updated
+    private TextView textView;
 
+
+      
     public MainWindowController()
     {
         // Read configuration
@@ -34,11 +40,56 @@ public class MainWindowController
         interfaceTreeView = CreateInterfaceTreeView();
         packetTreeView = CreatePacketTreeView();
 
-        packetScrolledWindow = new ScrolledWindow(); // Updated
-        packetScrolledWindow.Add(packetTreeView); // Updated
+        // Create a vertical separator
+        var separator = new VSeparator();
 
-        MainBox.PackStart(interfaceTreeView, true, true, 0);
-        MainBox.PackStart(packetScrolledWindow, true, true, 0); // Updated
+        // Create a scrolled window for the packet tree view
+        packetScrolledWindow = new ScrolledWindow();
+        packetScrolledWindow.Add(packetTreeView);
+
+        // Create entry for filter input
+        var filterEntry = new Entry();
+        filterEntry.PlaceholderText = "Filter by...";
+
+        // Create button for applying filter
+        var applyFilterButton = new Button("Apply Filter");
+        applyFilterButton.Clicked += (sender, args) =>
+        {
+            Filter = filterEntry.Text;
+            //ApplyFilter();
+        };
+
+
+        textView = new TextView();
+        textView.WrapMode = WrapMode.Word; // Set wrap mode to word to wrap long lines
+        textView.Editable = false; // Set editable to true if you want to allow editing
+        textView.Buffer.Text = "This is a large text box example.\nYou can enter and view large amounts of text here.";
+
+        /*
+        Box box = new Box(Orientation.Vertical, 5);
+        box.Add(interfaceTreeView);
+        box.Add(textView);
+        */
+
+        // Create a box for aligning the entry and button horizontally
+        var filterBox = new HBox(false, 5);
+        filterBox.PackStart(filterEntry, true, true, 0);
+        filterBox.PackStart(applyFilterButton, false, false, 0);
+
+        // Create a scrolled window for the interface tree view
+        var interfaceScrolledWindow = new ScrolledWindow();
+        interfaceScrolledWindow.Add(interfaceTreeView);
+
+        // Calculate the height of the interfaceTreeView
+        int interfaceTreeViewHeight = Height / 4;
+        interfaceTreeView.SetSizeRequest(-1, interfaceTreeViewHeight);
+
+        // Add interface scrolled window, separator, filter box, and packet scrolled window to the main box
+        MainBox.PackStart(interfaceScrolledWindow, true, true, 0);
+        MainBox.PackStart(textView, true, true, 0);
+        MainBox.PackStart(separator, false, false, 5); // Add padding between interface and filter entry
+        MainBox.PackStart(filterBox, false, false, 5); // Add padding between filter entry and packet list
+        MainBox.PackStart(packetScrolledWindow, true, true, 0);
 
         // Calculate the height of the packetTreeView
         int packetTreeViewHeight = Height / 2;
@@ -98,16 +149,15 @@ public class MainWindowController
             }
         }
     }
-
-    private TreeView CreatePacketTreeView()
+ private TreeView CreatePacketTreeView()
 {
     TreeView treeView = new TreeView();
     treeView.HeadersVisible = true;
 
     // Create columns
-    TreeViewColumn IdColumn = new TreeViewColumn();
-    IdColumn.Title = "Id";
-    treeView.AppendColumn(IdColumn);
+    TreeViewColumn idColumn = new TreeViewColumn();
+    idColumn.Title = "Id";
+    treeView.AppendColumn(idColumn);
 
     TreeViewColumn timeColumn = new TreeViewColumn();
     timeColumn.Title = "Time";
@@ -130,27 +180,27 @@ public class MainWindowController
     treeView.AppendColumn(lengthColumn);
 
     // Add cell renderers to columns
-    CellRendererText idCellRendererText = new CellRendererText(); // Renamed variable
-    IdColumn.PackStart(idCellRendererText, true);
-    IdColumn.AddAttribute(idCellRendererText, "text", 0);
+    CellRendererText idRendererText = new CellRendererText();
+    idColumn.PackStart(idRendererText, true);
+    idColumn.AddAttribute(idRendererText, "text", 0);
 
-    CellRendererText timeRendererText = new CellRendererText(); // Changed variable name
+    CellRendererText timeRendererText = new CellRendererText();
     timeColumn.PackStart(timeRendererText, true);
     timeColumn.AddAttribute(timeRendererText, "text", 1);
 
-    CellRendererText sourceRendererText = new CellRendererText(); // Changed variable name
+    CellRendererText sourceRendererText = new CellRendererText();
     sourceColumn.PackStart(sourceRendererText, true);
     sourceColumn.AddAttribute(sourceRendererText, "text", 2);
 
-    CellRendererText destinationRendererText = new CellRendererText(); // Changed variable name
+    CellRendererText destinationRendererText = new CellRendererText();
     destinationColumn.PackStart(destinationRendererText, true);
     destinationColumn.AddAttribute(destinationRendererText, "text", 3);
 
-    CellRendererText protocolRendererText = new CellRendererText(); // Changed variable name
+    CellRendererText protocolRendererText = new CellRendererText();
     protocolColumn.PackStart(protocolRendererText, true);
     protocolColumn.AddAttribute(protocolRendererText, "text", 4);
 
-    CellRendererText lengthRendererText = new CellRendererText(); // Changed variable name
+    CellRendererText lengthRendererText = new CellRendererText();
     lengthColumn.PackStart(lengthRendererText, true);
     lengthColumn.AddAttribute(lengthRendererText, "text", 5);
 
@@ -158,7 +208,33 @@ public class MainWindowController
     packetStore = new ListStore(typeof(string), typeof(string), typeof(string), typeof(string), typeof(string), typeof(string));
     treeView.Model = packetStore;
 
+    // Add selection changed event handler
+    treeView.Selection.Changed += OnPacketSelected;
+
     return treeView;
+}
+
+private void OnPacketSelected(object sender, EventArgs e)
+{
+    if (sender is TreeSelection selection)
+    {
+        TreeIter iter;
+        if (selection.GetSelected(out iter))
+        {
+            var selectedId = (string)((ListStore)selection.TreeView.Model).GetValue(iter, 0);
+            Console.WriteLine("Selected packet ID: " + selectedId);
+            
+        
+            // Find the packet with the selected ID
+            var selectedPacket = packets.FirstOrDefault(p => p.Id.ToString() == selectedId);
+            
+            if (selectedPacket != null)
+            {
+                // Set the text of the TextView to the content of the selected packet
+                textView.Buffer.Text = selectedPacket.Content;
+            }
+        }
+    }
 }
 
 
@@ -175,13 +251,17 @@ public class MainWindowController
 
         device.OnPacketArrival += new PacketArrivalEventHandler((sender, e) =>
         {
-            var packet = PacketHandler.HandlePacket(e.GetPacket(),Id);
+            var packet = PacketHandler.HandlePacket(e.GetPacket(),Id.ToString());
             Id++;
-            Console.WriteLine($"What is packet {packet.Id} \n");
-            packetStore.AppendValues(packet.Id,packet.Time,packet.Source,packet.Destination,packet.Protocol,packet.Length);
+            appendPacket(packet);
+            packetStore.AppendValues(packet.Id.ToString(),packet.Time,packet.Source,packet.Destination,packet.Protocol,packet.Length);
         });
         device.Open(DeviceModes.Promiscuous);
         device.StartCapture();
+    }
+
+    private void appendPacket(Packet packet){
+        packets.Add(packet);
     }
 
     private class Interfaces

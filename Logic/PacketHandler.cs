@@ -9,7 +9,7 @@ public class PacketHandler
     /// Handles the arrival of a packet.
     /// </summary>
     /// <param name="packet">The captured packet.</param>
-    public static Packet HandlePacket(RawCapture packet,int Id)
+    public static Packet HandlePacket(RawCapture packet,string Id)
     {
         if (ConvertPacket(packet) is EthernetPacket ethernetPacket)
         {
@@ -130,7 +130,7 @@ public class PacketHandler
         }
 
         Console.WriteLine();
-        return new Packet(12,DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz"),"CC:32:E5:72:1A:8D","DC:21:48:DD:96:AE","UDP","82 bytes","Content");
+        return new Packet(Id,DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz"),"CC:32:E5:72:1A:8D","DC:21:48:DD:96:AE","UDP","82 bytes","Content");
     }
 
     /// <summary>
