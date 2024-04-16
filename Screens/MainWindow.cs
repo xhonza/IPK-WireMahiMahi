@@ -4,7 +4,7 @@ public class MainWindow : Window
 {
     private MainWindowController controller;
 
-    public MainWindow() : base("Interface and Packets")
+    public MainWindow() : base("WireMahiMahi")
     {
         controller = new MainWindowController();
         Add(controller.MainBox);

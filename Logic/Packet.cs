@@ -8,14 +8,17 @@ public class Packet
     public string Length { get; set; }
     public string Content { get; set; }
 
-    public Packet(string id,string time, string source, string destination, string protocol, string length, string content)
+    public string Description { get; set; }
+
+    public Packet(string id,string time, string source, string destination, string protocol, int length, string content,string description)
     {
         Id = id;
         Time = time;
         Source = source;
         Destination = destination;
         Protocol = protocol;
-        Length = length;
+        Length = length.ToString();
         Content = content;
+        Description = description;
     }
 }

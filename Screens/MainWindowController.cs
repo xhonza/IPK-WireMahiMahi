@@ -24,77 +24,98 @@ public class MainWindowController
     private ListStore packetStore;
     private ScrolledWindow packetScrolledWindow; // Updated
     private TextView textView;
+    private TextView descriptionView;
 
 
-      
-    public MainWindowController()
+public MainWindowController()
+{
+    // Read configuration
+    var config = JObject.Parse(File.ReadAllText("Settings/AppConfig.json"));
+    Width = (int)config["Window"]["Width"];
+    Height = (int)config["Window"]["Height"];
+
+    MainBox = new VBox(false, 5);
+    Id = 1;
+
+    interfaceTreeView = CreateInterfaceTreeView();
+    packetTreeView = CreatePacketTreeView();
+
+    // Create a vertical separator
+    var separator = new VSeparator();
+
+    // Create a scrolled window for the packet tree view
+    packetScrolledWindow = new ScrolledWindow();
+    packetScrolledWindow.Add(packetTreeView);
+
+    // Create entry for filter input
+    var filterEntry = new Entry();
+    filterEntry.PlaceholderText = "Filter by...";
+
+    // Create button for applying filter
+    var applyFilterButton = new Button("Apply Filter");
+    applyFilterButton.Clicked += (sender, args) =>
     {
-        // Read configuration
-        var config = JObject.Parse(File.ReadAllText("Settings/AppConfig.json"));
-        Width = (int)config["Window"]["Width"];
-        Height = (int)config["Window"]["Height"];
-
-        MainBox = new VBox(false, 5);
-        Id = 1;
-
-        interfaceTreeView = CreateInterfaceTreeView();
-        packetTreeView = CreatePacketTreeView();
-
-        // Create a vertical separator
-        var separator = new VSeparator();
-
-        // Create a scrolled window for the packet tree view
-        packetScrolledWindow = new ScrolledWindow();
-        packetScrolledWindow.Add(packetTreeView);
-
-        // Create entry for filter input
-        var filterEntry = new Entry();
-        filterEntry.PlaceholderText = "Filter by...";
-
-        // Create button for applying filter
-        var applyFilterButton = new Button("Apply Filter");
-        applyFilterButton.Clicked += (sender, args) =>
-        {
-            Filter = filterEntry.Text;
-            //ApplyFilter();
-        };
+        Filter = filterEntry.Text;
+        ApplyFilter(Filter);
+    };
 
 
-        textView = new TextView();
-        textView.WrapMode = WrapMode.Word; // Set wrap mode to word to wrap long lines
-        textView.Editable = false; // Set editable to true if you want to allow editing
-        textView.Buffer.Text = "This is a large text box example.\nYou can enter and view large amounts of text here.";
+    textView = new TextView();
+    textView.WrapMode = WrapMode.Word; // Set wrap mode to word to wrap long lines
+    textView.Editable = false; // Set editable to true if you want to allow editing
+    textView.Buffer.Text = "";
 
-        /*
-        Box box = new Box(Orientation.Vertical, 5);
-        box.Add(interfaceTreeView);
-        box.Add(textView);
-        */
+    descriptionView = new TextView();
+    descriptionView.WrapMode = WrapMode.Word; // Set wrap mode to word to wrap long lines
+    descriptionView.Editable = false; // Set editable to true if you want to allow editing
+    descriptionView.Buffer.Text = "";
 
-        // Create a box for aligning the entry and button horizontally
-        var filterBox = new HBox(false, 5);
-        filterBox.PackStart(filterEntry, true, true, 0);
-        filterBox.PackStart(applyFilterButton, false, false, 0);
+    // Create a box for aligning the entry and button horizontally
+    var filterBox = new HBox(false, 5);
+    filterBox.PackStart(filterEntry, true, true, 0);
+    filterBox.PackStart(applyFilterButton, false, false, 0);
 
-        // Create a scrolled window for the interface tree view
-        var interfaceScrolledWindow = new ScrolledWindow();
-        interfaceScrolledWindow.Add(interfaceTreeView);
+    // Create a scrolled window for the interface tree view
+    var interfaceScrolledWindow = new ScrolledWindow();
+    interfaceScrolledWindow.Add(interfaceTreeView);
 
-        // Calculate the height of the interfaceTreeView
-        int interfaceTreeViewHeight = Height / 4;
-        interfaceTreeView.SetSizeRequest(-1, interfaceTreeViewHeight);
+    
+    Box boxBottom = new HBox();
+    
+    var contentScrolledWindow = new ScrolledWindow();
+    var desScrolledWindow = new ScrolledWindow();
+    contentScrolledWindow.Add(textView);
+    desScrolledWindow.Add(descriptionView);
 
-        // Add interface scrolled window, separator, filter box, and packet scrolled window to the main box
-        MainBox.PackStart(interfaceScrolledWindow, true, true, 0);
-        MainBox.PackStart(textView, true, true, 0);
-        MainBox.PackStart(separator, false, false, 5); // Add padding between interface and filter entry
-        MainBox.PackStart(filterBox, false, false, 5); // Add padding between filter entry and packet list
-        MainBox.PackStart(packetScrolledWindow, true, true, 0);
+    boxBottom.PackStart(desScrolledWindow, true, true, 20);
+    boxBottom.PackEnd(contentScrolledWindow, true, true, 5);
+    
 
-        // Calculate the height of the packetTreeView
-        int packetTreeViewHeight = Height / 2;
-        packetTreeView.SetSizeRequest(-1, packetTreeViewHeight);
+    // Add interface scrolled window, separator, filter box, and packet scrolled window to the main box
+    MainBox.PackStart(interfaceScrolledWindow, false, true, 0);
+    MainBox.PackStart(separator, false, false, 5); // Add padding between interface and filter entry
+    MainBox.PackStart(filterBox, false, false, 5); // Add padding between filter entry and packet list
+    MainBox.PackStart(packetScrolledWindow, true, true, 0);
+    MainBox.PackStart(boxBottom, true, true, 5);
+
+    // Calculate the height of the packetTreeView
+    int packetTreeViewHeight = Height / 3;
+    packetTreeView.SetSizeRequest(-1, packetTreeViewHeight);
+}
+    private void ApplyFilter(string filter){
+        Filter = filter;
+        clearCache();
+        StopPacketCaptureAll();
+        StartPacketCapture(GetSelectedInterface(),true);
     }
+
+    private void ShowNotification(string title, string message)
+{
+    var dialog = new MessageDialog(null, DialogFlags.Modal, MessageType.Info, ButtonsType.Ok, message);
+    dialog.Title = title;
+    dialog.Run();
+    dialog.Destroy();
+}
 
     private TreeView CreateInterfaceTreeView()
     {
@@ -129,10 +150,9 @@ public class MainWindowController
             if (selection.GetSelected(out iter))
             {
                 var selectedValue = (string)((ListStore)selection.TreeView.Model).GetValue(iter, 0);
-                Console.WriteLine("Selected interface: " + selectedValue);
-                packetStore.Clear();
+                clearCache();
                 StopPacketCaptureAll();
-                StartPacketCapture(selectedValue);
+                StartPacketCapture(selectedValue,false);
             }
         }
     }
@@ -149,6 +169,20 @@ public class MainWindowController
             }
         }
     }
+
+    private string GetSelectedInterface()
+{
+    var selection = interfaceTreeView.Selection;
+    if (selection != null)
+    {
+        TreeIter iter;
+        if (selection.GetSelected(out iter))
+        {
+            return (string)((ListStore)selection.TreeView.Model).GetValue(iter, 0);
+        }
+    }
+    return null; // Return null if no item is selected
+}
  private TreeView CreatePacketTreeView()
 {
     TreeView treeView = new TreeView();
@@ -214,6 +248,13 @@ public class MainWindowController
     return treeView;
 }
 
+private void clearCache(){
+    packets.Clear();
+    packetStore.Clear();
+    textView.Buffer.Text = "";
+    descriptionView.Buffer.Text = "";
+}
+
 private void OnPacketSelected(object sender, EventArgs e)
 {
     if (sender is TreeSelection selection)
@@ -222,16 +263,23 @@ private void OnPacketSelected(object sender, EventArgs e)
         if (selection.GetSelected(out iter))
         {
             var selectedId = (string)((ListStore)selection.TreeView.Model).GetValue(iter, 0);
-            Console.WriteLine("Selected packet ID: " + selectedId);
-            
-        
+
             // Find the packet with the selected ID
             var selectedPacket = packets.FirstOrDefault(p => p.Id.ToString() == selectedId);
-            
+
             if (selectedPacket != null)
             {
-                // Set the text of the TextView to the content of the selected packet
-                textView.Buffer.Text = selectedPacket.Content;
+                // Check if selected packet content is null before setting it to TextView
+                if (selectedPacket.Content != null)
+                {
+                    textView.Buffer.Text = selectedPacket.Content;
+                    descriptionView.Buffer.Text = $"\n{selectedPacket.Description}";
+                }
+                else
+                {
+                    textView.Buffer.Text = "No content available for this packet.";
+                    
+                }
             }
         }
     }
@@ -239,7 +287,8 @@ private void OnPacketSelected(object sender, EventArgs e)
 
 
 
-    private void StartPacketCapture(string interfaceName)
+
+    private void StartPacketCapture(string interfaceName,bool update)
     {
         var devices = CaptureDeviceList.Instance;
         var device = interfaceName != null ? devices.FirstOrDefault(d => d.Name == interfaceName) : devices.FirstOrDefault();
@@ -257,7 +306,19 @@ private void OnPacketSelected(object sender, EventArgs e)
             packetStore.AppendValues(packet.Id.ToString(),packet.Time,packet.Source,packet.Destination,packet.Protocol,packet.Length);
         });
         device.Open(DeviceModes.Promiscuous);
+        
+        try
+        {
         device.StartCapture();
+        device.Filter = Filter;
+        if(update)
+            ShowNotification("Filter Applied", "Filter has been successfully applied.");
+        }catch(Exception e){
+            if(update)
+                ShowNotification("Error", "Invalid format of filter.");
+            else
+                ShowNotification("Error", "Error occured while trying to capture on selected interface.");
+        }
     }
 
     private void appendPacket(Packet packet){
