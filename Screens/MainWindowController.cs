@@ -92,7 +92,7 @@ public MainWindowController()
     
 
     // Add interface scrolled window, separator, filter box, and packet scrolled window to the main box
-    MainBox.PackStart(interfaceScrolledWindow, false, true, 0);
+    MainBox.PackStart(interfaceScrolledWindow, false, true, 10);
     MainBox.PackStart(separator, false, false, 5); // Add padding between interface and filter entry
     MainBox.PackStart(filterBox, false, false, 5); // Add padding between filter entry and packet list
     MainBox.PackStart(packetScrolledWindow, true, true, 0);
